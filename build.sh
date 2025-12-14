@@ -82,9 +82,23 @@ fi
 
 # Move outputs into dist/
 shopt -s nullglob
-OUT=(Telegram*.AppImage* *.AppImage*)
+# Only move Telegram outputs. Avoid a broad "*.AppImage*" glob here:
+# - It overlaps with Telegram*.AppImage* and can create duplicates
+# - It would also match appimagetool-*.AppImage itself
+OUT=(Telegram*.AppImage*)
 if (( ${#OUT[@]} == 0 )); then
   echo "ERROR: appimagetool produced no .AppImage outputs" >&2
   exit 1
 fi
-mv "${OUT[@]}" dist/
+
+# Be robust against accidental duplicate matches (e.g. if someone adds a broader glob later).
+declare -A _moved=()
+for f in "${OUT[@]}"; do
+  [[ "$f" == Telegram*.AppImage* ]] || continue
+  [[ -e "$f" ]] || continue
+  if [[ -n "${_moved[$f]+x}" ]]; then
+    continue
+  fi
+  _moved[$f]=1
+  mv -- "$f" dist/
+done
